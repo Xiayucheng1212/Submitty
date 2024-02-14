@@ -200,6 +200,48 @@ class ElectronicGraderController extends AbstractController {
         }
         return $final_grading_info;
     }
+
+    /**
+     * Helper function for removing team members from peer grading
+     * @param string $gradeable_id
+     * @param Array $final_grading_info
+     */
+    private function removeSameTeamPeerGrading($gradeable_id, $final_grading_info) {
+        // Get student team information
+        $all_teams = $this->core->getQueries()->getTeamsByGradeableId($gradeable_id);
+
+        $team_user_ids = []; // team_id => [user_id, user_id, ...]
+        for ($i = 0; $i < count($all_teams); $i++) {
+            array_push($team_user_ids, $all_teams[$i]->getMembers());
+        }
+
+        // Reverse the team_user_ids array to get the user_id as the key and the team_id as the value.
+        // This is done to make it easier to find the team_id of a user_id, 
+        // and this should be faster than requesting the database for each user.
+        $user_to_team_ids = []; // user_id => team_id
+        for ($i = 0; $i < count($team_user_ids); $i++) {
+            for ($j = 0; $j < count($team_user_ids[$i]); $j++) {
+                $user_to_team_ids[$team_user_ids[$i][$j]] = $i;
+            }
+        }
+
+        // Remove the peer graders from the final_grading_info array
+        for ($i = 0; $i < count($final_grading_info); $i++) {
+            $student_id = $final_grading_info[$i][0];
+            $peer_graders = $final_grading_info[$i][1];
+            for ($j = 0; $j < count($peer_graders); $j++) {
+                $peer_grader = $peer_graders[$j];
+                if (array_key_exists($student_id, $user_to_team_ids) && array_key_exists($peer_grader, $user_to_team_ids)) {
+                    if ($user_to_team_ids[$student_id] === $user_to_team_ids[$peer_grader]) {
+                        unset($final_grading_info[$i][1][$j]);
+                        $final_grading_info[$i][1] = array_values($final_grading_info[$i][1]);
+                    }
+                }
+            }
+        }
+        return $final_grading_info;
+    }
+
     /**
      * Route for Getting Gradeable
      * @Route("/courses/{_semester}/{_course}/gradeable/{gradeable_id}/getUserGroup", methods={"GET"})
@@ -286,6 +328,10 @@ class ElectronicGraderController extends AbstractController {
                     $final_grading_info = $this->setRandomizedGraders($student_array, $number_to_grade);
                 }
             }
+            // Check if it's a team assignment, then it need to remove peer graders from students who are in the same team
+            if ($gradeable->isTeamAssignment()) {
+                $final_grading_info = $this->removeSameTeamPeerGrading($gradeable_id, $final_grading_info);
+            }
             $gradeable->setRandomPeerGradersList($final_grading_info);
             return JsonResponse::getSuccessResponse($final_grading_info);
         }
@@ -320,10 +366,16 @@ class ElectronicGraderController extends AbstractController {
         }
         if ($all_grade_all) {
             $final_grading_info = $this->setAllGradAllGrading($student_array);
+            if ($gradeable->isTeamAssignment()) {
+                $final_grading_info = $this->removeSameTeamPeerGrading($gradeable_id, $final_grading_info);
+            }
             $gradeable->setRandomPeerGradersList($final_grading_info);
             return JsonResponse::getSuccessResponse($final_grading_info);
         }
         $final_grading_info = $this->setRandomizedGraders($student_array, $number_to_grade);
+        if ($gradeable->isTeamAssignment()) {
+            $final_grading_info = $this->removeSameTeamPeerGrading($gradeable_id, $final_grading_info);
+        }
         if ($number_to_grade < 1) {
             $gradeable->setRandomPeerGradersList($final_grading_info);
             return JsonResponse::getSuccessResponse("Clear Peer Matrix");
