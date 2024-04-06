@@ -1920,6 +1920,17 @@ function markThreadUnread(thread_id) {
 }
 
 // eslint-disable-next-line no-unused-vars
+function toggleFirstPostDropdown() {
+    $('#first-post-dropdown').toggleClass('show');
+    $('#first-post-dropdown').css({
+        'position': 'absolute',
+        'top': '38px',
+        'left': '240px',
+        'will-change': 'transform',
+    });
+}
+
+// eslint-disable-next-line no-unused-vars
 function toggleMarkdown(post_box_id, triggered) {
     if (post_box_id === undefined) {
         post_box_id = '';
