@@ -1907,8 +1907,7 @@ function markThreadUnread(thread_id) {
             // eslint-disable-next-line no-undef
             csrf_token: csrfToken,
         },
-        // eslint-disable-next-line no-unused-vars
-        success: function(data) {
+        success: function() {
             $(`#thread_box_link_${thread_id}`).children().addClass('new_thread');
             $('.post_box').removeClass('viewed_post').addClass('new_post');
         },
@@ -1932,8 +1931,7 @@ function markPostUnread(thread_id, post_id, last_viewed_timestamp) {
             // eslint-disable-next-line no-undef
             csrf_token: csrfToken,
         },
-        // eslint-disable-next-line no-unused-vars
-        success: function(data) {
+        success: function() {
             $(`#thread_box_link_${thread_id}`).children().addClass('new_thread');
             $(`#${post_id}`).removeClass('viewed_post').addClass('new_post');
         },
